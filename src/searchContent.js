@@ -1,42 +1,64 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-function searchContent(searchOptions) {
-  const { filePaths, regex, includeFileExt } = searchOptions
+import { simpleReplaceContent } from './replaceContent.js'
 
-  // verify inputs?
-  // make a safeguard recursive count
+async function searchContent(searchOptions) {
+  const { filePaths, regex, regexFlags, replaceString, includeFileExt } = searchOptions
+
+  // TODO: verify inputs?
 
   // go through each filePath
   filePaths.forEach((filePath) => {
-    // read all files from single filePath
     fs.readdir(filePath, { withFileTypes: true }, (err, files) => {
       if (err) throw new Error(err)
 
-      files.forEach((file) => {
-        // if file is directory, if yes iterate
+      files.forEach(async(file) => {
+        // if is subdirectory, then read files in subdirectory
         if (file.isDirectory()) {
           console.log('is a directory: ', file.name)
-          const subDirectory = [path.join(file.path, file.name)]
-          searchContent({filePaths: subDirectory, regex, includeFileExt})
+          const subDirectory = [path.join(file.parentPath, file.name)]
+          // TODO: make a safeguard recursive count?
+          await searchContent({...searchOptions, filePaths: subDirectory})
           return
         }
-        // if file is file, search for regex match in content
+
+        // if file is not .js or .vue file, return
+        let fileExtMatch = false
+        includeFileExt.forEach((ext) => {
+          if (file.name.endsWith(ext)) fileExtMatch = true
+        })
+        if (!fileExtMatch) {
+          console.log(file.name, ' is not a .js or .vue file')
+          return
+        }
+
+        // if file is file, perform search and replace
         const directory = path.join(filePath, file.name)
-        fs.readFile(directory, 'utf8', (err, data) => {
+        fs.readFile(directory, 'utf8', async(err, data) => {
           if (err) throw new Error(err)
+          console.log('reading file: ', directory)
           if (typeof data !== 'string' || data === '') throw new Error('invalid or empty file content')
 
-          console.log('reading file: ', directory)
+          // check if replaceString contains \$&
+          let result = ''
+          if (/\\\$&/.test(replaceString)) {
+            console.log('replaceString has \\$&')
+          } else {
+            result = await simpleReplaceContent({ regex, regexFlags, replaceString, fileContent: data })
+          }
 
-          let copyData = data
-          const match = copyData.match(regex)
-          if (match) console.log('how many matches', match.length)
-          else console.log('0 matches')
-          
-          while (regex.test(copyData)) {
-
-            copyData = copyData.replace(regex, '')
+          // check for matches, if no match then don't write file
+          if (result === '') {
+            console.log('no match then no write')
+            return
+          }
+          if (result.length > 0) {
+            // has match and replaced, start write file
+            fs.writeFile(directory, result, (err) => {
+              if (err) throw new Error(err)
+            })
+            console.log('file written: ', directory)
           }
         })
       })
