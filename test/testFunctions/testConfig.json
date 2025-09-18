@@ -1,0 +1,11 @@
+{
+  "filePaths": ["./test/components", "./test/views"],
+  "fileExts": [".vue", ".js"],
+  "replacements": [
+    {
+      "regex": "(<v-radio ):value",
+      "regexFlags": "g",
+      "replaceStr": "$1:model-value"
+    }
+  ]
+}
