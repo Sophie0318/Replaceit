@@ -2,8 +2,8 @@
   <v-data-table 
     :headers="headers" 
     :items="items" 
-    v-model:page="page" 
-    v-model:items-per-page="itemsPerPage"
+    :page.sync="page" 
+    :items-per-page.sync="itemsPerPage"
     v-expand
   />
 </template>

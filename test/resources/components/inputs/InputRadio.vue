@@ -1,5 +1,5 @@
 <template>
-  <v-radio :model-value="radioVal" v-bind="$attrs" />
+  <v-radio :value="radioVal" v-bind="$attrs" v-on="on" />
 </template>
 
 <script>

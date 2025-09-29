@@ -1,11 +1,21 @@
 {
-  "filePaths": ["./test/components", "./test/views"],
+  "filePaths": ["./test/resources/components", "./test/resources/views"],
   "fileExts": [".vue", ".js"],
   "replacements": [
     {
       "regex": "(<v-radio ):value",
       "regexFlags": "g",
       "replaceStr": "$1:model-value"
+    },
+    {
+      "regex": "(<v-text-field )@input",
+      "regexFlags": "g",
+      "replaceStr": "$1@update:model-value"
+    },
+    {
+      "regex": "([\\w\\s]*).sync",
+      "regexFlags": "g",
+      "replaceStr": "v-model:$1"
     }
   ]
 }

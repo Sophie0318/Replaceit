@@ -1,19 +1,8 @@
-import replaceit from "../../src/replaceit.js";
+import replaceit from '../../src/replaceit.js'
+import testConfig from './testConfig.json' assert {type: 'json'}
 
-async function testReplaceit() {
-  const testConfig = {
-    "filePaths": ["./test/resources/components", "./test/resources/views"],
-    "fileExts": [".vue", ".js"],
-    "replacements": [
-      {
-        "regex": "(<v-radio ):value",
-        "regexFlags": "g",
-        "replaceStr": "$1:model-value"
-      }
-    ]
-  }
-
-  return await replaceit(testConfig, false)
+async function testReplaceit(testConfig, isDryRun) {
+  return await replaceit(testConfig, isDryRun)
 }
 
-console.log(await testReplaceit())
+console.log(await testReplaceit(testConfig, true))
