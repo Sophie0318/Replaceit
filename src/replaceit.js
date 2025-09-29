@@ -25,27 +25,36 @@ async function replaceit(config, isDryRun = false) {
         // iterate through replacements to find match 
         for (let replacement of replacements) {
           const { regex, regexFlags, replaceStr } = replacement
-          const searchRegexFlags = /g/.test(regexFlags) ? regexFlags.replace('g', '') : regexFlags
+          const searchRegexFlags = /g/.test(regexFlags) ? regexFlags : regexFlags + 'g'
           const searchRegex = new RegExp(regex, searchRegexFlags)
           const matches = fileContent.match(searchRegex)
           // if no match, then don't write file
           if (matches === null) {
             console.log(fileDirectory, ' has no match')
           }
-          // if match, but isDryRun === true, then don't replace file, and output log
-          else if(isDryRun === true && matches.length > 0) {
-            console.log(fileDirectory, ' has ', matches.length, ' matches')
-            console.log('the matches: ', matches[1], ' at ', matches.index)
-          }
-          // if match, then replace and write file 
-          else if (isDryRun === false && matches.length > 0) {
-            console.log(fileDirectory, ' has ', matches.length, ' matches')
-            let copyContent = fileContent
-            while(searchRegex.test(copyContent)) {
+          // if match then output log and see if isDryRun === true
+          else if(matches.length > 0) {
+            console.log(fileDirectory, ' has ', matches.length, ' matches: ')
+
+            // if isDryRun === true, then output log only
+            if (isDryRun === true) {
+              // get line number of the match and log which line has match
+              let copyContent = fileContent
+              for (let match of matches) {
+                const index = copyContent.indexOf(match)
+                const contentBefore = copyContent.substring(0, index + 1)
+                const newLines = contentBefore.match(/\n/g)
+                let lineNumber = 0
+                if (newLines !== null) { lineNumber = newLines.length + 1 }
+                console.log('\t', 'at line ', lineNumber, ': ', match)
+  
+                copyContent = copyContent.replace(match, '')
+              }
+            } else {
+              // if match and isDryRun === false, then replace and write file
               fileContent = fileContent.replace(searchRegex, replaceStr)
-              copyContent = copyContent.replace(searchRegex, '')
+              await fs.writeFileSync(fileDirectory, fileContent)
             }
-            await fs.writeFileSync(fileDirectory, fileContent)
           }
         }
       }
@@ -55,7 +64,7 @@ async function replaceit(config, isDryRun = false) {
   }
 
   return new Promise((resolve) => {
-    resolve('done')
+    resolve('\nSearch Done!')
   })
 }
 
