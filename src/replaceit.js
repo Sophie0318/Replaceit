@@ -1,8 +1,8 @@
 import fs from 'fs'
 import path from 'path'
 
-// findAndReplace(config: ReplacementsConfig, isDryRun: boolean): Promise<Report>
-async function replaceit(config, isDryRun) {
+// replaceit(config: ReplacementsConfig, isDryRun: boolean): Promise<Report>
+async function replaceit(config, isDryRun = false) {
   const { filePaths, fileExts, replacements } = config
 
   try {
@@ -22,18 +22,23 @@ async function replaceit(config, isDryRun) {
         }
         // process file
         let fileContent = await fs.readFileSync(fileDirectory, {encoding: 'utf8'})
-        // TODO: decide when to check isDryRun
         // iterate through replacements to find match 
         for (let replacement of replacements) {
           const { regex, regexFlags, replaceStr } = replacement
-          const searchRegexFlags = /g/.test(regexFlags) ? regexFlags : regexFlags + 'g'
+          const searchRegexFlags = /g/.test(regexFlags) ? regexFlags.replace('g', '') : regexFlags
           const searchRegex = new RegExp(regex, searchRegexFlags)
           const matches = fileContent.match(searchRegex)
           // if no match, then don't write file
           if (matches === null) {
             console.log(fileDirectory, ' has no match')
-          // if match, then replace and write file
-          } else if (matches.length > 0) {
+          }
+          // if match, but isDryRun === true, then don't replace file, and output log
+          else if(isDryRun === true && matches.length > 0) {
+            console.log(fileDirectory, ' has ', matches.length, ' matches')
+            console.log('the matches: ', matches[1], ' at ', matches.index)
+          }
+          // if match, then replace and write file 
+          else if (isDryRun === false && matches.length > 0) {
             console.log(fileDirectory, ' has ', matches.length, ' matches')
             let copyContent = fileContent
             while(searchRegex.test(copyContent)) {
