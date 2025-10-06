@@ -1,8 +1,8 @@
-import replaceit from '../../src/replaceit.js'
+import {replaceit, findFiles} from '../../src/replaceit.js'
 import testConfig from './testConfig.json' assert {type: 'json'}
 
-async function testReplaceit(testConfig, isDryRun) {
-  return await replaceit(testConfig, isDryRun)
+async function testReplaceit(testConfig, findFiles, isDryRun) {
+  return await replaceit(testConfig, findFiles, isDryRun)
 }
 
-console.log(await testReplaceit(testConfig, true))
+testReplaceit(testConfig, findFiles, false)
