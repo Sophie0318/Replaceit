@@ -1,71 +1,81 @@
-import fs from 'fs'
+import fs from 'fs/promises'
 import path from 'path'
 
-// replaceit(config: ReplacementsConfig, isDryRun: boolean): Promise<Report>
-async function replaceit(config, isDryRun = false) {
+async function findFiles(filePaths, fileExts) {
+  const allFiles = []
+  // TODO: input validation?
+
+  for (let filePath of filePaths) {
+    const dirents = await fs.readdir(filePath, {withFileTypes: true, recursive: true})
+    
+    for (let dirent of dirents) {
+      if (dirent.isDirectory()) continue
+      
+      const fullPath = path.join(dirent.path, dirent.name)
+      const extension = path.extname(dirent.name)
+      if (fileExts.includes(extension)) {
+        allFiles.push(fullPath)
+      } else {
+        console.log(`invalid file extension: ${fullPath}`)
+        continue
+      }
+    }
+  }
+
+  return allFiles
+}
+
+async function replaceit(config, findFiles, isDryRun = false) {
   const { filePaths, fileExts, replacements } = config
 
   try {
-    // iterate through filePaths
-    for (let filePath of filePaths) {
-      const files = await fs.readdirSync(filePath, {withFileTypes: true, recursive: true})    
-      for (let file of files) {
-        // if directory, then skip to next
-        if (file.isDirectory()) continue
-  
-        // if it is file, check if acceptable extension
-        const fileDirectory = path.join(file.parentPath, file.name)
-        const extension = path.extname(file.name)
-        if (!fileExts.includes(extension)) {
-          console.log(fileDirectory, ' has invalid extension')
+    // Find files
+    const allFiles = await findFiles(filePaths, fileExts)
+    if (allFiles.length === 0) {
+      console.log('\nNo files found')
+      return
+    } else {
+      console.log(`\nFound ${allFiles.length} files to process. Mode: ${isDryRun ? 'dry-run' : 'replace'}`)
+    }
+
+    for (let file of allFiles) {
+      let fileContent = await fs.readFile(file, {encoding: 'utf8'})
+      let resultContent = fileContent
+      let totalMatches = 0
+      console.log(`Reading file: ${file}`)
+
+      // Iterate through replacements array on each file
+      for (let replacement of replacements) {
+        const {regex, regexFlags, replaceStr} = replacement
+        const searchRegexFlags = /g/.test(regexFlags) ? regexFlags : regexFlags + 'g'
+        const searchRegex = new RegExp(regex, searchRegexFlags)
+
+        const allMatches = Array.from(fileContent.matchAll(searchRegex))
+        if (allMatches.length === 0) {
+          console.log(`\tRegex Rule: ${regex} | No match found`)
           continue
         }
-        // process file
-        let fileContent = await fs.readFileSync(fileDirectory, {encoding: 'utf8'})
-        // iterate through replacements to find match 
-        for (let replacement of replacements) {
-          const { regex, regexFlags, replaceStr } = replacement
-          const searchRegexFlags = /g/.test(regexFlags) ? regexFlags : regexFlags + 'g'
-          const searchRegex = new RegExp(regex, searchRegexFlags)
-          const matches = fileContent.match(searchRegex)
-          // if no match, then don't write file
-          if (matches === null) {
-            console.log(fileDirectory, ' has no match')
-          }
-          // if match then output log and see if isDryRun === true
-          else if(matches.length > 0) {
-            console.log(fileDirectory, ' has ', matches.length, ' matches: ')
+        totalMatches += allMatches.length
+        for (let match of allMatches) {
+          const beforeMatch = fileContent.substring(0, match.index)
+          const matchLine = Array.from(beforeMatch.matchAll('\n')).length + 1
+          console.log(`\tRegex Rule: ${regex} | Match found at line: ${matchLine}`)
 
-            // if isDryRun === true, then output log only
-            if (isDryRun === true) {
-              // get line number of the match and log which line has match
-              let copyContent = fileContent
-              for (let match of matches) {
-                const index = copyContent.indexOf(match)
-                const contentBefore = copyContent.substring(0, index + 1)
-                const newLines = contentBefore.match(/\n/g)
-                let lineNumber = 0
-                if (newLines !== null) { lineNumber = newLines.length + 1 }
-                console.log('\t', 'at line ', lineNumber, ': ', match)
-  
-                copyContent = copyContent.replace(match, '')
-              }
-            } else {
-              // if match and isDryRun === false, then replace and write file
-              fileContent = fileContent.replace(searchRegex, replaceStr)
-              await fs.writeFileSync(fileDirectory, fileContent)
-            }
+          if (isDryRun === false) {
+            resultContent = resultContent.replace(searchRegex, replaceStr)
           }
         }
       }
+
+      if (isDryRun === false && totalMatches > 0) {
+        // write file
+        await fs.writeFile(file, resultContent, {encoding: 'utf8'})
+        console.log('\t==== Write file complete ====')
+      }
     }
   } catch (error) {
-    console.log('error occurred: ', error)
+    console.error(error)
   }
-
-  return new Promise((resolve) => {
-    resolve('\nSearch Done!')
-  })
 }
 
-export default replaceit
+export {replaceit, findFiles}
